@@ -1,0 +1,26 @@
+<ArchivoRaiz>
+    <Carpeta nombre="Musica">
+        <Archivo nombre="Slayer - Raining Blood" tipo="Audio" />
+        <Archivo nombre="Metallica - One" tipo="Audio" />
+        <Archivo nombre="Megadeth - Hangar 18" tipo="Audio" />
+        <Archivo nombre="Anthrax - Indians" tipo="Audio" />
+        <Carpeta nombre="Samples">
+            <Archivo nombre="Hi-Hat" tipo="Audio" />
+        </Carpeta>
+    </Carpeta>
+    <Carpeta nombre="Organizacion de datos">
+        <Archivo nombre="TP3" tipo="Documento" />
+        <Archivo nombre="ejemplo-imagen" tipo="Imagen" />
+    </Carpeta>
+    <Carpeta nombre="Programacion 2">
+        <Archivo nombre="Resumen 2da parte" tipo="Documento" />
+    </Carpeta>
+    <Carpeta nombre="">
+        <Archivo nombre="Archivo7" tipo="Imagen" />
+        <Archivo nombre="Archivo8" tipo="Documento" />
+    </Carpeta>
+    <Carpeta nombre="Carpeta5">
+        <Archivo nombre="Archivo9" tipo="Documento" />
+        <Archivo nombre="Archivo10" tipo="Imagen" />
+    </Carpeta>
+</ArchivoRaiz>

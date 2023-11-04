@@ -14,81 +14,56 @@
 # Si se incluye el flag -d, descomprimir el archivo compressed.bin obtenido en el inciso anterior y recuperar el archivo original.txt.
 # Calcular la tasa de compresión, el rendimiento y la redundancia.
 
-import math
+import struct
+import Util
+import ArbolHuffman
+from ArbolHuffman import NodoHuffman
 
-class NodoHuffman:
-    def __init__(self, caracter = -1, frecuencia = -1):
-        self.caracter = caracter
-        self.frecuencia = frecuencia
-        self.izquierda = None
-        self.derecha = None
+def comprimir(archivo,diccionario): 
 
-def construir_arbol_huffman(frecuencias):
-    nodos = [NodoHuffman(caracter, frecuencia) for caracter, frecuencia in frecuencias.items()]
-    while len(nodos) > 1:
-        nodos = sorted(nodos, key=lambda x: x.frecuencia)
-        izquierda = nodos.pop(0)
-        derecha = nodos.pop(0)
-        nuevo_nodo = NodoHuffman(None, izquierda.frecuencia + derecha.frecuencia)
-        nuevo_nodo.izquierda = izquierda
-        nuevo_nodo.derecha = derecha
-        nodos.append(nuevo_nodo)
-    return nodos[0]
+        with open("archivoC.bin", "wb") as fc:
+            # Cantidad de codigos que se almacenan en el diccionario
+            cantCodigos = len(diccionario)
+            fc.write(struct.pack('B',cantCodigos))
 
-def generar_codigos_huffman(arbol, codigo_actual, codigos):
-    if arbol.caracter:
-        codigos[arbol.caracter] = codigo_actual.lstrip()
-    if arbol.izquierda:
-        generar_codigos_huffman(arbol.izquierda, codigo_actual + "0", codigos)
-    if arbol.derecha:
-        generar_codigos_huffman(arbol.derecha, codigo_actual + "1", codigos)
+            for key,value in diccionario.items():
+                
+                # Caracter que representa el codigo en el archivo original
+                caracter = struct.pack('c',key.encode("ascii"))
+                fc.write(caracter)
 
-def mostrar_arbol_huffman(arbol, nivel=0, prefijo="R:"):
-    if arbol.caracter:
-        print("  " * nivel + f"{prefijo}{arbol.caracter} ({arbol.frecuencia})")
-    if arbol.izquierda:
-        mostrar_arbol_huffman(arbol.izquierda, nivel + 1, "I:")
-    if arbol.derecha:
-        mostrar_arbol_huffman(arbol.derecha, nivel + 1, "D:")
+                # Cantidad de bits que tiene la cadena del codigo
+                cantbits = struct.pack('B',len(value))
+                fc.write(cantbits)
+                
+                # Se guarda la cadena dinamicamente
+                codigo = struct.pack('I',int(value,2))
+                fc.write(codigo)
 
-def ordenaDiccionario(diccionario):
-    return dict(sorted(diccionario.items(), key=lambda item: item[1]))
+            with open(archivo, "rt") as arch:
+                original = arch.read()
+                
+                # Se codifica el archivo original en los bits generados
+                bits = ""
+                for c in original:
+                    bits += diccionario[c]
 
-def suma_dicc(diccionario):
-    totalCaracteres = 0
+            # int(bits_comprimidos[i:i+8], 2) toma el segmento de 8 bits y 
+            # lo convierte en un número entero interpretando los bits como una representación binaria. 
+            # El segundo argumento 2 en int(..., 2) indica que estamos interpretando la cadena como binaria.
+            
+            # Se codifica el archivo original en los bits generados en bytes
+            bytescomprimidos = bytes(int(bits[i:i+8],2) for i in range(0,len(bits),8))
 
-    for valor in diccionario.values():
-        totalCaracteres += valor
+            fc.write(bytescomprimidos)
 
-    return totalCaracteres
-
-def huffman(diccionario):
-    dicc_aux = dict(diccionario)
-    while(len(dicc_aux.keys()) != 1):
-        primeros2 = list(dicc_aux)[:2]
-        
-        valor1 = dicc_aux[primeros2[0]]
-        valor = dicc_aux[primeros2[1]] + valor1
-        
-        union = str(primeros2[0]) + str(primeros2[1])
-
-        dicc_aux[union] = valor
-        
-        dicc_aux.pop(primeros2[0])
-        dicc_aux.pop(primeros2[1])
-        
-        dicc_aux = ordenaDiccionario(dicc_aux)
-    
-    return dicc_aux
-
-def entropia(diccionario):
-    entropia = 0
-    for key in diccionario.keys():
-        entropia += diccionario[key] * math.log2(diccionario[key] ** -1)
-    return entropia
+def descomprimir():
+    diccionario = {}
+    with open("archivoC.bin","rb") as file:
+        n=1
 
 # Comienzo del script
-filename = "tp3_sample0.txt"
+filename = "tp3_sample1.txt"
 
 caracteres = {}
 
@@ -104,7 +79,7 @@ with open(filename, 'rt') as file:
 # print(caracteres)
 
 # Se obtiene el total de caracteres que se leyeron del archivo contando los espacios
-totalCaracteres = suma_dicc(caracteres)
+totalCaracteres = Util.suma_dicc(caracteres)
 
 probCaracteres = {}
 
@@ -113,25 +88,32 @@ for key in caracteres.keys():
     probCaracteres[key] = caracteres[key] / totalCaracteres # Para sacar la probilidad no redondeamos para que la probabilidad sume 1
 
 # Se ordena el diccionario de menor a mayor en probabilidad de cada caracter
-probCaracteres = ordenaDiccionario(probCaracteres)
+probCaracteres = Util.ordenaDiccionario(probCaracteres)
 
 # Aplicacion de Huffman
 arbolH = NodoHuffman()
 
 # Cargo el arbol binario para luego obtener los codigos de cada caracter
-arbolH = construir_arbol_huffman(probCaracteres) 
+arbolH = ArbolHuffman.construir_arbol_huffman(probCaracteres) 
 
-# mostrar_arbol_huffman(arbolH)
+# ArbolHuffman.mostrar_arbol_huffman(arbolH)
 codigos = {}
 for key in probCaracteres.keys(): 
-    generar_codigos_huffman(arbolH, key, codigos)
+    ArbolHuffman.generar_codigos_huffman(arbolH, key, codigos)
 
 print(codigos)
 
-print("Entropia de la fuente: " + str(entropia(probCaracteres)))
+codConProb = {}
 
+for key,value in codigos.items():
+    codConProb[value] = probCaracteres[key]
 
+print("Entropia de la fuente: " + str(Util.entropia(probCaracteres)))
+print("Longitud media: " + str(Util.longitudMediaCodigo(codConProb)))
 
+# longitudMediaCodigo(codigos)
+
+comprimir(filename,codigos)
 
 
 
