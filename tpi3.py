@@ -14,106 +14,206 @@
 # Si se incluye el flag -d, descomprimir el archivo compressed.bin obtenido en el inciso anterior y recuperar el archivo original.txt.
 # Calcular la tasa de compresión, el rendimiento y la redundancia.
 
-import struct
+import sys
 import Util
 import ArbolHuffman
 from ArbolHuffman import NodoHuffman
+import pickle
+import copy
+import os
 
-def comprimir(archivo,diccionario): 
+def persistencia(arbol, datos_comprimidos, filename):
+    data = {
+        "Arbol Huffman" : arbol,
+        "TextoC" : datos_comprimidos
+    }
+    
+    with open(filename, "wb") as file:
+        pickle.dump(data, file)
 
-        with open("archivoC.bin", "wb") as fc:
-            # Cantidad de codigos que se almacenan en el diccionario
-            cantCodigos = len(diccionario)
-            fc.write(struct.pack('B',cantCodigos))
+def obtenerEstructurasC(archivo):
+    caracteres = {}
+    # Abrir archivo y leer caracter por caracter
+    with open(filename, 'rt') as file:
+        texto = file.read()
+    
+    for caracter in texto:
+        if(caracter in caracteres):
+            caracteres[caracter] += 1
+        else:
+            caracteres[caracter] = 1
+        
+    # Se obtiene el total de caracteres que se leyeron del archivo contando los espacios
+    totalCaracteres = Util.suma_dicc(caracteres)
 
-            for key,value in diccionario.items():
-                
-                # Caracter que representa el codigo en el archivo original
-                caracter = struct.pack('c',key.encode("ascii"))
-                fc.write(caracter)
+    probCaracteres = {}
 
-                # Cantidad de bits que tiene la cadena del codigo
-                cantbits = struct.pack('B',len(value))
-                fc.write(cantbits)
-                
-                # Se guarda la cadena dinamicamente
-                codigo = struct.pack('I',int(value,2))
-                fc.write(codigo)
+    # Se calcula la probabilidad de cada caracter
+    for key in caracteres.keys():
+        probCaracteres[key] = caracteres[key] / totalCaracteres # Para sacar la probilidad no redondeamos para que la probabilidad sume 1
 
-            with open(archivo, "rt") as arch:
-                original = arch.read()
-                
-                # Se codifica el archivo original en los bits generados
-                bits = ""
-                for c in original:
-                    bits += diccionario[c]
+    # Se ordena el diccionario de menor a mayor en probabilidad de cada caracter
+    probCaracteres = Util.ordenaDiccionario(probCaracteres)
 
-            # int(bits_comprimidos[i:i+8], 2) toma el segmento de 8 bits y 
-            # lo convierte en un número entero interpretando los bits como una representación binaria. 
-            # El segundo argumento 2 en int(..., 2) indica que estamos interpretando la cadena como binaria.
+        # Aplicacion de Huffman
+    arbolH = NodoHuffman()
+
+    # Cargo el arbol binario para luego obtener los codigos de cada caracter
+    arbolH = ArbolHuffman.construir_arbol_huffman(probCaracteres) 
+
+    # ArbolHuffman.mostrar_arbol_huffman(arbolH)
+    codigos = {}
+    for key in probCaracteres.keys(): 
+        ArbolHuffman.generar_codigos_huffman(arbolH, key, "",codigos)
+    # print(codigos)
+
+    codConProb = {}
+
+    for key,value in codigos.items():
+        codConProb[value] = probCaracteres[key]
+
+    return texto, codigos, codConProb, arbolH, probCaracteres
+
+
+def obtenerEstructurasD(arbolHuffman, texto):
+    caracteres = {}
+    
+    for caracter in texto:
+        if(caracter in caracteres):
+            caracteres[caracter] += 1
+        else:
+            caracteres[caracter] = 1
             
-            # Se codifica el archivo original en los bits generados en bytes
-            bytescomprimidos = bytes(int(bits[i:i+8],2) for i in range(0,len(bits),8))
+    totalCaracteres = Util.suma_dicc(caracteres)
 
-            fc.write(bytescomprimidos)
+    probCaracteres = {}
 
-def descomprimir():
-    diccionario = {}
-    with open("archivoC.bin","rb") as file:
-        n=1
+    # Se calcula la probabilidad de cada caracter
+    for key in caracteres.keys():
+        probCaracteres[key] = caracteres[key] / totalCaracteres # Para sacar la probilidad no redondeamos para que la probabilidad sume 1
 
-# Comienzo del script
-filename = "tp3_sample1.txt"
+    # Se ordena el diccionario de menor a mayor en probabilidad de cada caracter
+    probCaracteres = Util.ordenaDiccionario(probCaracteres)
 
-caracteres = {}
+    codigos = {}
+    for key in probCaracteres.keys(): 
+        ArbolHuffman.generar_codigos_huffman(arbolHuffman, key, "",codigos)
 
-# Abrir archivo y leer caracter por caracter
-with open(filename, 'rt') as file:
-    for line in file:
-        for caracter in line:
-            if(caracter in caracteres):
-                caracteres[caracter] += 1
-            else:
-                caracteres[caracter] = 1
+    codConProb = {}
 
-# print(caracteres)
+    for key,value in codigos.items():
+        codConProb[value] = probCaracteres[key]
+    
+    return codConProb, probCaracteres
 
-# Se obtiene el total de caracteres que se leyeron del archivo contando los espacios
-totalCaracteres = Util.suma_dicc(caracteres)
+def comprimir(archivo): 
 
-probCaracteres = {}
+    texto, codigos, codConProb, arbolH, probCaracteres = obtenerEstructurasC(archivo)
+    
+    # Se codifica el archivo original en los bits generados
+    bits = "1"
+    for c in texto:
+        bits += codigos[c]
+    
+    while(len(bits) % 8 != 0):
+        bits += codigos[' ']
+    
+    # int(bits_comprimidos[i:i+8], 2) toma el segmento de 8 bits y 
+    # lo convierte en un número entero interpretando los bits como una representación binaria. 
+    # El segundo argumento 2 en int(..., 2) indica que estamos interpretando la cadena como binaria.
+    
+    # Se codifica el archivo original en los bits generados en bytes
+    bytescomprimidos = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits), 8))
+    # print(bin(int.from_bytes(bytescomprimidos[:100],byteorder="big")))
+    
+    return bytescomprimidos, codigos, codConProb, arbolH, probCaracteres
 
-# Se calcula la probabilidad de cada caracter
-for key in caracteres.keys():
-    probCaracteres[key] = caracteres[key] / totalCaracteres # Para sacar la probilidad no redondeamos para que la probabilidad sume 1
+def descomprimir(texto, arbol, filename):
+    
+    textoComprimido = bin(int.from_bytes(texto, byteorder="big"))[2:]
+    cadenaBinaria = ""
+    textoDescomprimido = ""
+    textoComprimido = textoComprimido[1:]
+    for bit in textoComprimido:
+        cadenaBinaria += bit
+        
+        caracter = buscaCaracter(arbol, cadenaBinaria)
+        
+        if(caracter):
+            textoDescomprimido += caracter
+            cadenaBinaria = ""
+        
+    with open(filename, "wt") as f:
+        f.write(textoDescomprimido)
+    
+    return textoDescomprimido
 
-# Se ordena el diccionario de menor a mayor en probabilidad de cada caracter
-probCaracteres = Util.ordenaDiccionario(probCaracteres)
+def buscaCaracter(arbol, binario):
+    nodo = copy.copy(arbol)
+    i = 0
+    while(nodo.caracter is None and i < len(binario)):
+        if('0' == binario[i]):
+            nodo = nodo.izquierda
+        else:
+            nodo = nodo.derecha
+        
+        i += 1
+    
+    return nodo.caracter
 
-# Aplicacion de Huffman
-arbolH = NodoHuffman()
+def cargarDatos(filename):
+    with open(filename,"rb") as file:
+        data = pickle.load(file)
+        arbol = data["Arbol Huffman"]
+        texto = data["TextoC"]
+    
+    return arbol,texto
 
-# Cargo el arbol binario para luego obtener los codigos de cada caracter
-arbolH = ArbolHuffman.construir_arbol_huffman(probCaracteres) 
 
-# ArbolHuffman.mostrar_arbol_huffman(arbolH)
-codigos = {}
-for key in probCaracteres.keys(): 
-    ArbolHuffman.generar_codigos_huffman(arbolH, key, codigos)
 
-print(codigos)
 
-codConProb = {}
+# # Comienzo del script
 
-for key,value in codigos.items():
-    codConProb[value] = probCaracteres[key]
 
-print("Entropia de la fuente: " + str(Util.entropia(probCaracteres)))
-print("Longitud media: " + str(Util.longitudMediaCodigo(codConProb)))
+# Esto define la cantidad de caracteres que se pueden usar para una interpretacion de un int 
+#(Establece la limitación de la longitud de conversión de cadenas enteras utilizada por este intérprete)
+sys.set_int_max_str_digits(0)
+vectorDeParametros = list(sys.argv)
+# print(vectorDeParametros)
+if(len(vectorDeParametros) > 2):
+    # filename = "tp3_sampleA.txt" 
+    filename = vectorDeParametros[1]
+    compressed = vectorDeParametros[2]
+    
+    if(vectorDeParametros[3] == "-c"):
 
-# longitudMediaCodigo(codigos)
+        compresion, codigos, codigosConProb, arbol, probCaracteres = comprimir(filename)
+        persistencia(arbol,compresion,compressed)
 
-comprimir(filename,codigos)
+    elif(vectorDeParametros[3] == "-d"):
+        arbolH = NodoHuffman()
+
+        arbolH, texto = cargarDatos(compressed)
+
+        textoOriginal = descomprimir(texto,arbolH,filename)
+        
+        codigosConProb, probCaracteres = obtenerEstructurasD(arbolH, textoOriginal)
+        
+    entropia = Util.entropia(probCaracteres)
+    longitud = Util.longitudMediaCodigo(codigosConProb)
+        
+    rendimiento = Util.rendimiento(entropia,longitud)
+    redundancia = Util.redundancia(entropia,longitud)
+    
+    
+    print("Rendimiento: " + str(rendimiento))
+    print("Redundancia: " + str(redundancia))
+    
+    print("Tasa de compresion: " + str(Util.tasaDeCompresion(filename, compressed)) + "%")
+
+
+
+
 
 
 
