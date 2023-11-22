@@ -55,7 +55,7 @@ def obtenerEstructurasC(archivo):
     # Se ordena el diccionario de menor a mayor en probabilidad de cada caracter
     probCaracteres = Util.ordenaDiccionario(probCaracteres)
 
-        # Aplicacion de Huffman
+    # Aplicacion de Huffman
     arbolH = NodoHuffman()
 
     # Cargo el arbol binario para luego obtener los codigos de cada caracter
@@ -114,10 +114,11 @@ def comprimir(archivo):
     bits = "1"
     for c in texto:
         bits += codigos[c]
-    
+
     while(len(bits) % 8 != 0):
         bits += codigos[' ']
-    
+        if(len(bits) % 8 == 7):
+            bits += codigos[' '][0]
     # int(bits_comprimidos[i:i+8], 2) toma el segmento de 8 bits y 
     # lo convierte en un número entero interpretando los bits como una representación binaria. 
     # El segundo argumento 2 en int(..., 2) indica que estamos interpretando la cadena como binaria.
@@ -182,8 +183,8 @@ vectorDeParametros = list(sys.argv)
 # print(vectorDeParametros)
 if(len(vectorDeParametros) > 2):
     # filename = "tp3_sampleA.txt" 
-    filename = vectorDeParametros[1]
-    compressed = vectorDeParametros[2]
+    filename = vectorDeParametros[1] # archivo de texto
+    compressed = vectorDeParametros[2] # archivo comprimido
     
     if(vectorDeParametros[3] == "-c"):
 
@@ -201,7 +202,7 @@ if(len(vectorDeParametros) > 2):
         
     entropia = Util.entropia(probCaracteres)
     longitud = Util.longitudMediaCodigo(codigosConProb)
-        
+    
     rendimiento = Util.rendimiento(entropia,longitud)
     redundancia = Util.redundancia(entropia,longitud)
     

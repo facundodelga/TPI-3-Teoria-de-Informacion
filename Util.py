@@ -9,7 +9,7 @@ def longitudMediaCodigo(diccionario):
 def entropia(diccionario):
     entropia = 0
     for key in diccionario.keys():
-        entropia += diccionario[key] * math.log2(diccionario[key] ** -1)
+        entropia -= diccionario[key] * math.log2(diccionario[key])
     return entropia
 
 def ordenaDiccionario(diccionario):
@@ -24,10 +24,10 @@ def suma_dicc(diccionario):
     return totalCaracteres
 
 def rendimiento(entropia, longitudMedia):
-    return round(entropia / longitudMedia,2)
+    return round(entropia / longitudMedia,6)
 
 def redundancia(entropia, longitudMedia):
-    return round(1 - rendimiento(entropia, longitudMedia),2)
+    return round(1 - rendimiento(entropia, longitudMedia),6)
 
 def tasaDeCompresion(original, comprimido):
     sizeOriginal = os.path.getsize(original)
